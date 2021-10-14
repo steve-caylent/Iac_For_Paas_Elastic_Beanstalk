@@ -1,0 +1,329 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: 
+  Elastic Beanstalk Demo application that connects to an external Amazon RDS
+  database instance. Example Application running 64bit Amazon Linux 2 v4.2.6 running Tomcat 8.5 Corretto 11 
+  #64bit Amazon Linux 2018.03 v3.4.11 running Tomcat 7 Java 7
+
+
+#####################################
+#   Parameters
+#     Elastic Beanstalk Customization
+#####################################
+
+
+Parameters:
+  ApplicationName:
+    Description: Application name
+    Type: String
+    MinLength: '4'
+    MaxLength: '100'
+    Default: EB-Application-Dev
+    AllowedPattern: '^[A-Za-z][a-zA-Z0-9@%$_-]{8,41}$'
+    ConstraintDescription: Must contain only alphanumeric characters.
+  EnvironmentName:
+    Description: Environment Name
+    Type: String
+    MinLength: '4'
+    MaxLength: '40'
+    Default: development
+    #AllowedPattern: '^[A-Za-z][a-zA-Z0-9@%$_-]{8,41}$'
+    #ConstraintDescription: Must contain only alphanumeric characters.
+  KeyName:
+    Description: >-
+      Existing EC2 KeyPair to enable SSH access to the Elastic
+      Beanstalk hosts
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: Must be existing EC2 KeyPair.
+  ASGMinSize:
+    Description: Minimum number of instances in Auto Scaling group.
+    Type: Number
+    Default: '1'
+    ConstraintDescription: Must be a valid integer value.
+  ASGMaxSize:
+    Description: Maximum number of instances in Auto Scaling group.
+    Type: Number
+    Default: '1'
+    ConstraintDescription: Must be a valid integer value.
+  RollingUpdateEnabled:
+    Type: String
+    Description: >-
+      Enable rolling updates to avoid application downtime.
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'false'
+  RollingUpdateType:
+    Type: String
+    Description: >-
+      Time-based have PauseTime between batches. 
+      Health-based wait for health checks to pass.
+      Immutable new set of instances in new AutoScaling group.
+    AllowedValues:
+      - Time
+      - Health
+      - Immutable
+    Default: Immutable
+  StreamCWLogs:
+    Type: String
+    Description: >-
+      Select to create groups in CloudWatch logs and stream logs from instances in your environment.
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+  CWLogsDeleteOnTerminate:
+    Type: String
+    Description: >-
+      Delete the log groups when the environment is terminated or the logs are kept x RetentionDays days.
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+  CWLogsRetentionInDays:
+    Description: Days to keep log events before they expire.
+    Type: Number
+    Default: '7'
+    AllowedValues:
+      - '1'
+      - '3'
+      - '5'
+      - '7'
+      - '14'
+      - '30'
+      - '60'
+      - '90'
+      - '120'
+      - '150'
+      - '180'
+      - '365'
+      - '400'
+      - '545'
+      - '731'
+      - '1827'
+      - '3653'
+  DeploymentPolicy:
+    Type: String
+    Description: Select deployment policy for application.
+    AllowedValues:
+      - AllAtOnce
+      - Rolling
+      - RollingWithAdditionalBatch
+      - Immutable
+    Default: Immutable
+  LogPublicationControl:
+    Type: String
+    Description: Copy the log files to S3 associated with EB application.
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+  HealthSystemType:
+    Type: String
+    Description: Select Health reporting system. 
+    AllowedValues:
+      - basic
+      - enhanced
+    Default: basic
+  EnvironmentType:
+    Type: String
+    Description: Choose if a single instance or if load balancing is required.
+    AllowedValues:
+      - SingleInstance
+      - LoadBalanced
+    Default: LoadBalanced
+
+
+Resources:
+
+
+###################################
+#   IAM ROLES
+#     SSM Role with managed policy
+#     Instance profile for EC2's
+###################################
+
+
+  WebServerRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Description: Beanstalk EC2 role
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/AWSElasticBeanstalkWebTier
+        - arn:aws:iam::aws:policy/AWSElasticBeanstalkMulticontainerDocker
+        - arn:aws:iam::aws:policy/AWSElasticBeanstalkWorkerTier
+  WebServerInstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Path: /
+      Roles:
+        - !Ref WebServerRole
+  EBServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: elasticbeanstalk.amazonaws.com
+            Condition:
+              StringEquals:
+                'sts:ExternalId': elasticbeanstalk
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkEnhancedHealth'
+        - 'arn:aws:iam::aws:policy/service-role/AWSElasticBeanstalkService'
+
+###################################
+#   Elastic Beanstalk
+#     Sample Environment
+#       Sample Application
+#       Sample Application Version
+#       Config Template
+#         Select VPC w/ subnets
+#         Connect to external RDS
+#           DB user password, SG
+###################################
+
+
+  SampleApplication:
+    Type: 'AWS::ElasticBeanstalk::Application'
+    Properties:
+      Description: AWS Elastic Beanstalk Sample Application
+      ApplicationName: !Ref ApplicationName
+  SampleApplicationVersion:
+    Type: 'AWS::ElasticBeanstalk::ApplicationVersion'
+    Properties:
+      Description: Version 1.0
+      ApplicationName: !Ref SampleApplication
+      SourceBundle:
+        S3Bucket: !Join 
+          - '-'
+          - - cloudformation-examples
+            - !Ref 'AWS::Region'
+        S3Key: CloudFormationBeanstalkRDSExample.war
+  SampleConfigurationTemplate:
+    Type: 'AWS::ElasticBeanstalk::ConfigurationTemplate'
+    Properties:
+      ApplicationName: !Ref SampleApplication
+      Description: Default Configuration
+      SolutionStackName: 64bit Amazon Linux 2 v4.2.6 running Tomcat 8.5 Corretto 11 
+      OptionSettings:
+        - Namespace: aws:ec2:vpc
+          OptionName: VPCId
+          Value: !ImportValue VPCId
+        - Namespace: aws:ec2:vpc
+          OptionName: Subnets
+          Value: !Join 
+            - ','
+            - - !ImportValue pub-sub-a
+              - !ImportValue pub-sub-b
+              - !ImportValue pub-sub-c
+        - Namespace: aws:ec2:vpc
+          OptionName: ELBSubnets
+          Value: !Join 
+            - ','
+            - - !ImportValue pub-sub-a
+              - !ImportValue pub-sub-b
+              - !ImportValue pub-sub-c
+        - Namespace: 'aws:elasticbeanstalk:application:environment'
+          OptionName: JDBC_CONNECTION_STRING
+          Value: !Join 
+            - ''
+            - - 'jdbc:mysql://'
+              - !ImportValue RDSaddress
+             #- '{{resolve:ssm-secure:/eb-demo/rds/endpoint:1}}'
+              - ':'
+              - !ImportValue RDSport
+             #- '{{resolve:ssm-secure:/eb-demo/rds/port:1}}'
+              - /EbDb?characterEncoding=latin1
+        - Namespace: 'aws:elasticbeanstalk:application:environment'
+          OptionName: PARAM1
+          Value: !ImportValue RDSuser
+          #Value: '{{resolve:ssm-secure:/eb-demo/rds/user:1}}'
+        - Namespace: 'aws:elasticbeanstalk:application:environment'
+          OptionName: PARAM2
+          Value: !ImportValue RDSpassword
+          #Value: '{{resolve:ssm-secure:/eb-demo/rds/password:1}}'
+        - Namespace: 'aws:elasticbeanstalk:environment'
+          OptionName: ServiceRole
+          Value: !Ref EBServiceRole
+        - Namespace: 'aws:elasticbeanstalk:environment'
+          OptionName: EnvironmentType
+          Value: !Ref EnvironmentType
+        - Namespace: 'aws:autoscaling:asg'
+          OptionName: MinSize
+          Value: !Ref ASGMinSize
+        - Namespace: 'aws:autoscaling:asg'
+          OptionName: MaxSize
+          Value: !Ref ASGMaxSize  
+        - Namespace: 'aws:autoscaling:launchconfiguration'
+          OptionName: SecurityGroups
+          Value: !ImportValue InstanceSecurityGroup
+        - Namespace: 'aws:autoscaling:launchconfiguration'
+          OptionName: IamInstanceProfile
+          Value: !Ref WebServerInstanceProfile
+        - Namespace: 'aws:autoscaling:launchconfiguration'
+          OptionName: EC2KeyName
+          Value: !Ref KeyName
+        - Namespace: 'aws:autoscaling:updatepolicy:rollingupdate'
+          OptionName: RollingUpdateEnabled
+          Value: !Ref RollingUpdateEnabled
+        - Namespace: 'aws:autoscaling:updatepolicy:rollingupdate'
+          OptionName: RollingUpdateType
+          Value: !Ref RollingUpdateType  
+        - Namespace: 'aws:elb:loadbalancer'
+          OptionName: CrossZone
+          Value: true
+        - Namespace: 'aws:elasticbeanstalk:cloudwatch:logs'
+          OptionName: StreamLogs
+          Value: !Ref StreamCWLogs
+        - Namespace: 'aws:elasticbeanstalk:cloudwatch:logs'
+          OptionName: DeleteOnTerminate
+          Value: !Ref CWLogsDeleteOnTerminate
+        - Namespace: 'aws:elasticbeanstalk:cloudwatch:logs'
+          OptionName: RetentionInDays
+          Value: !Ref CWLogsRetentionInDays
+        - Namespace: 'aws:elasticbeanstalk:hostmanager'
+          OptionName: LogPublicationControl
+          Value: !Ref LogPublicationControl  
+        - Namespace: 'aws:elasticbeanstalk:command'
+          OptionName: DeploymentPolicy
+          Value: !Ref DeploymentPolicy
+        - Namespace: 'aws:elasticbeanstalk:healthreporting:system'
+          OptionName: SystemType
+          Value: !Ref HealthSystemType
+  SampleEnvironment:
+    Type: 'AWS::ElasticBeanstalk::Environment'
+    Properties:
+      Description: AWS Elastic Beanstalk Environment running Sample Application
+      ApplicationName: !Ref SampleApplication
+      EnvironmentName: !Ref EnvironmentName
+      TemplateName: !Ref SampleConfigurationTemplate
+      VersionLabel: !Ref SampleApplicationVersion
+
+
+##################################
+#   Outputs
+#     EB endpoint URL 
+################################## 
+
+
+Outputs:
+  URL:
+    Description: URL of the AWS Elastic Beanstalk Environment
+    Value: !Join 
+      - ''
+      - - 'http://'
+        - !GetAtt 
+          - SampleEnvironment
+          - EndpointURL

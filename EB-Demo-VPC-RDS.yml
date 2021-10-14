@@ -1,0 +1,312 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description:  This template creates a VPC with 3 private and 3 public /24 subnets and decoupled RDS for EB Demo. 
+Parameters:
+  DBUser:
+    NoEcho: 'true'
+    Type: String
+    Description: Decoupled database admin account name
+    MinLength: '1'
+    MaxLength: '16'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+  DBPassword:
+    NoEcho: 'true'
+    Type: String
+    Description: Decoupled database admin account password
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]*'
+    ConstraintDescription: must contain only alphanumeric characters.
+Resources:
+
+
+#########################################
+#   RDS
+#     RDS t2.micro
+#     RDS subnets group
+#########################################
+
+  decoupledDB:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      AllocatedStorage: '5'
+      DBInstanceClass: db.t2.micro
+      DBName: EbDb
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      Engine: MySQL
+      MasterUsername: !Ref DBUser
+      MasterUserPassword: !Ref DBPassword
+      Port: '3306'
+      Tags:
+        - Key: Name
+          Value: EBdecoupledDB
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroup
+    DeletionPolicy: Snapshot
+  DBSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupDescription: 3 AZs
+      SubnetIds:
+        - !Ref SubnetPrivA
+        - !Ref SubnetPrivB
+        - !Ref SubnetPrivC
+      Tags:
+        - Key: Name
+          Value: DBsubnetGroup
+
+#########################################
+#   Security Groups
+#     RDS SG port 3306 for mysql
+#     EC2 RDS SG for EB EC2
+#########################################
+
+
+  EC2SecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: RDS allows ingress from EC2 instances in this group.
+      SecurityGroupIngress:
+        - Description: 'Open port 80'
+          IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: '0.0.0.0/0'
+        - Description: 'Open port 22 for SSH'
+          IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: '0.0.0.0/0'
+  RDSSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: Control access to Database
+      SecurityGroupIngress:
+        - Description: 'Open MySQL port/Allow access'
+          IpProtocol: tcp
+          FromPort: '3306'
+          ToPort: '3306'
+          SourceSecurityGroupId: !GetAtt [
+          EC2SecurityGroup, GroupId]
+      
+
+################################################
+#  Route Tables
+#    Route for 3 private subnets
+###############################################  
+
+
+  RouteTablePrivate: 
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: eb-demo-vpc-rt-private
+  RouteTableAssociationA:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPrivA
+      RouteTableId: !Ref RouteTablePrivate
+  RouteTableAssociationB:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPrivB
+      RouteTableId: !Ref RouteTablePrivate
+  RouteTableAssociationC:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPrivC
+      RouteTableId: !Ref RouteTablePrivate
+
+
+##################################
+#   VPC 
+#     10.0.0.0/21
+##################################  
+
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/21
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: eb-demo-vpc
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+      - Key: Name
+        Value: eb-demo-vpc-igw
+  InternetGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  RouteTablePublic: 
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: eb-demo-vpc-rt-public
+  RouteTablePublicIPv4: 
+    Type: 'AWS::EC2::Route'
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId:
+        Ref: RouteTablePublic
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId:
+        Ref: InternetGateway
+  RouteTableAssociationPublicA:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPublicA
+      RouteTableId:
+        Ref: RouteTablePublic
+  RouteTableAssociationPublicB:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPublicB
+      RouteTableId:
+        Ref: RouteTablePublic
+  RouteTableAssociationPublicC:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref SubnetPublicC
+      RouteTableId:
+        Ref: RouteTablePublic
+
+
+##################################
+#   Subnets 
+#     /24 CIDR
+#     3 public subnets
+#     3 private subnets
+#     10.0.1.0/24 -> 10.0.6.0/24
+################################## 
+
+  
+  SubnetPrivA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: 10.0.1.0/24
+      Tags:
+        - Key: Name
+          Value: sn-priv-A
+  SubnetPrivB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: 10.0.2.0/24
+      Tags:
+        - Key: Name
+          Value: sn-priv-B
+  SubnetPrivC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      CidrBlock: 10.0.3.0/24
+      Tags:
+        - Key: Name
+          Value: sn-priv-C
+  SubnetPublicA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: 10.0.4.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: sn-pub-A
+  SubnetPublicB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: 10.0.5.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: sn-pub-B
+  SubnetPublicC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      CidrBlock: 10.0.6.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: sn-pub-C
+
+
+##################################
+#   Outputs
+#     RDS Endpoint, Port
+#     RDS DB User, Password
+#     Instance SG
+#     VPC ID
+#     Public Subnets for EB
+################################## 
+
+
+Outputs:
+  RDSDB:
+    Description: Decoupled DB endpoint for EB Demo
+    Value: !GetAtt [
+          decoupledDB, Endpoint.Address]
+    Export:
+      Name: RDSaddress
+  RDSport:
+    Description: Decoupled DB endpoint for EB Demo
+    Value: !GetAtt [
+          decoupledDB, Endpoint.Port]
+    Export:
+      Name: RDSport
+  RDSuser:
+    Description: MySQL RDS User name
+    Value: !Ref DBUser
+    Export:
+      Name: RDSuser
+  RDSpassword:
+    Description: MySQL RDS admin password
+    Value: !Ref DBPassword
+    Export:
+      Name: RDSpassword
+  EBSecurityGroup:
+    Description: SG to allow access to RDS
+    Value: !Ref EC2SecurityGroup
+    Export:
+      Name: InstanceSecurityGroup
+  VPCID:
+    Description: VPC to use in EB
+    Value: !Ref VPC
+    Export:
+      Name: VPCId
+  PubSubA:
+    Description: Public Subnet A
+    Value: !Ref SubnetPublicA
+    Export:
+      Name: pub-sub-a
+  PubSubB:
+    Description: Public Subnet A
+    Value: !Ref SubnetPublicB
+    Export:
+      Name: pub-sub-b
+  PubSubC:
+    Description: Public Subnet A
+    Value: !Ref SubnetPublicC
+    Export:
+      Name: pub-sub-c
