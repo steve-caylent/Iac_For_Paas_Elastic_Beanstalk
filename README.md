@@ -32,17 +32,20 @@ Use the cloudformation template below to set up the initial environment with an 
 * SSM-Bastion.yml *- for the initial setup environment*
 <br />
 
-![SSM_Bastion](https://user-images.githubusercontent.com/90650872/137347028-8a968a1f-acd2-4f6f-adbc-fbb686e80990.png)
+![EB-DEMO-VPC View](https://user-images.githubusercontent.com/90650872/137389717-be667c19-e1fe-424f-bd17-a2d26e7c2f7b.png)
 
 As usual, wait out the setup...
 
 
+<img src="https://user-images.githubusercontent.com/90650872/137389767-76728fdb-4f20-4dc5-8a91-30cd45ebcd57.png" width="600">
+
+
 ### Accessing Bastion Host => Private EC2
 From your remote computer make sure you have AWS CLI installed and configured as well as having the correct KeyPair .pem file.
-![awscli](https://user-images.githubusercontent.com/90650872/137362188-56705dc4-11b1-40e3-96bc-b61f335cc3bf.png)
+
 <br />
 Using the CloudFormation Outputs find the IPs for accessing the EC2 instances
-![outputs](https://user-images.githubusercontent.com/90650872/137362267-cc225231-ecb3-4912-afd3-a2f585254e8f.png)
+
 <br />
 First make sure SSH agent is running with your selected key pair
 ```
@@ -62,7 +65,7 @@ Now that you've connected to the Bastion Host let's connect to a private EC2 ins
 ```
 ssh ec2-user@PRIVATEIPofEC2
 ```
-![privateEC2](https://user-images.githubusercontent.com/90650872/137363799-688abbd7-0d62-4b09-9766-7bffacf9a5ef.png)
+
 
 
 Fantastic! You've connected to the private EC2 instance. It took several steps, left an EC2 running and left port 22 open! Time to change that!
@@ -104,7 +107,8 @@ Use the cloudformation template below to update the stack you created above.<br 
 * SSM-Without-Bastion.yml *- for accessing EC2 via Session Manager*
 <br />
 
-![SSM Without Bastion](https://user-images.githubusercontent.com/90650872/137347013-349e1139-a523-4fdf-a4c3-1b4d78e8041d.png)
+
+![EB-DEMO-w_EB](https://user-images.githubusercontent.com/90650872/137389728-9a495a59-c48a-49c6-a75f-0ea60fd405b7.png)
 
 
 As usual, wait out the setup...
@@ -114,7 +118,22 @@ Now that the VPCE’s have been created you can access the EC2 from the console 
 ```
 aws ssm start-session --target INSTANCE ID
 ```
-![session](https://user-images.githubusercontent.com/90650872/137368134-57d5005e-e003-455b-ab77-9673de4d1f01.png)
+
+
+
+
+<img src="https://user-images.githubusercontent.com/90650872/137389783-ed31ec56-5ee5-408d-9db2-832fafb85bc3.png" width="800">
+
+<img src="https://user-images.githubusercontent.com/90650872/137389760-7e8198a6-3ab3-4c3a-a575-f3706c30d026.png" width="600">
+
+
+<img src="https://user-images.githubusercontent.com/90650872/137389790-cd5262d6-ab76-4105-9c9a-3edfb5c06f4f.png" width="350">
+
+
+<img src="https://user-images.githubusercontent.com/90650872/137389817-154451f6-d289-4f44-a400-bad095774efa.png" width="600">
+
+![SuccessRDSconnection](https://user-images.githubusercontent.com/90650872/137389828-64891153-083d-490d-99ff-4168a830fdd4.png)
+
 
 
 And that's all it takes! Easy and secure!
@@ -122,26 +141,12 @@ And that's all it takes! Easy and secure!
 
 And it's as easy as that! In a few steps you've created SSM Session Manager endpoints for access to EC2 in private subnets AND with no open ports!
 The benefit of having the SSM VPCE's is that you can now use Systems Manager to Run Commands, install updates and scan using Inspector.<br />
-Check here for more info on Systems Manager [AWS SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/what-is-systems-manager.html)
+
 
 ## Author
 Caylent Inc.
 
 
-![EB-DEMO-VPC View](https://user-images.githubusercontent.com/90650872/137389717-be667c19-e1fe-424f-bd17-a2d26e7c2f7b.png)
-
-![EB-DEMO-w_EB](https://user-images.githubusercontent.com/90650872/137389728-9a495a59-c48a-49c6-a75f-0ea60fd405b7.png)
-
-![DBendpoint](https://user-images.githubusercontent.com/90650872/137389760-7e8198a6-3ab3-4c3a-a575-f3706c30d026.png)
-
-![outputs](https://user-images.githubusercontent.com/90650872/137389767-76728fdb-4f20-4dc5-8a91-30cd45ebcd57.png)
-
-![Parameters](https://user-images.githubusercontent.com/90650872/137389783-ed31e
-
-![EBCF](https://user-images.githubusercontent.com/90650872/137389790-cd5262d6-ab76-4105-9c9a-3edfb5c06f4f.png)
-c56-5ee5-408d-9db2-832fafb85bc3.png)
-
-![EBUrl](https://user-images.githubusercontent.com/90650872/137389817-154451f6-d289-4f44-a400-bad095774efa.png)
 
 
-![SuccessRDSconnection](https://user-images.githubusercontent.com/90650872/137389828-64891153-083d-490d-99ff-4168a830fdd4.png)
+
