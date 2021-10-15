@@ -54,7 +54,8 @@ As usual, wait out the setup...
 ## Finished!
 
 
-
+## References
+[AWS Elastic Beanstalk Documentation - Getting Started](https://aws.amazon.com/elasticbeanstalk/getting-started/)
 
 ## Author
 Caylent Inc.
