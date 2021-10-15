@@ -6,7 +6,18 @@
 
 ![AWS Elastic Beanstalk High Level](https://user-images.githubusercontent.com/90650872/137396722-76a74bf0-224d-4901-b718-1d8dfd6f8bfd.png)
 
+### What will be created with Elastic Beanstalk VPC environment
 
+The initial environment will have the following:
+* A VPC with IGW
+* 3 public subnets
+* Security Group for EC2 Web Tier EC2's 
+* public route
+* 3 private subnets
+* RDS MySQL Instance
+* RDS Subnet group across all private subnets
+* Security Group for RDS 
+* private route
 
 ## Setting up the environment
 
@@ -22,6 +33,18 @@ As usual, wait out the setup...
 <img src="https://user-images.githubusercontent.com/90650872/137389767-76728fdb-4f20-4dc5-8a91-30cd45ebcd57.png" width="600">
 
 
+### What will be created with the Elastic Beanstalk template
+
+The EB template will create the following:
+* web roles for Web Tier EC2
+* Elastic Beanstalk service role 
+* Elastic Beanstalk Web Tier Environment with options:
+  - EB Environment will have EC2 in auto-scaling group
+  - single instance/load balanced
+  - EC2 key pair for SSH
+  - stream to CloudWatch logs
+  - time to retain logs
+  - will connect to RDS instance in EB VPC using RDS endpoint.
 
 
 ## Setting up the environment for Elastic Beanstalk
