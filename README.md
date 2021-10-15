@@ -1,6 +1,11 @@
 # IaC For PaaS - Elastic Beanstalk
 
+## What is Elastic Beanstalk
 
+AWS Elastic Beanstalk is an user friendly service for deploying both web applications and services. Elastic Beanstalk can use several different programming languages (Java, .NET, PHP, Node.js, Python, Ruby, Go, and Docker). These can be used on Apache, Nginx, Passenger, and IIS services.<br />
+Once your application code is uploaded to Elastic Beanstalk, deployment (including load balancing, auto-scaling, etc). After Elastic Beanstalk creates the resources, you can access the application and underlying resources whenever you like. This is made one step easier by using CloudFormation to create the Elastic Beanstalk environment. 
+## Benefits of Elastic Beanstalk (EB)
+Elastic Beanstalk is quick and easy way to deploy and test applications in AWS. Developers can easily upload an application and EB will handle the deployment and provisioning. This allows for infrastructure to be provisioned quickly, freeing up time for developers. 
 
 **Elastic Beanstalk is a Platform as a Service. It auto deploys resources on your behalf**
 
