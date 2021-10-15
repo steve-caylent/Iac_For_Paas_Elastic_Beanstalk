@@ -11,6 +11,10 @@ Elastic Beanstalk is quick and easy way to deploy and test applications in AWS. 
 
 ![AWS Elastic Beanstalk High Level](https://user-images.githubusercontent.com/90650872/137396722-76a74bf0-224d-4901-b718-1d8dfd6f8bfd.png)
 
+
+## Elastic Beanstalk VPC
+The solution will create a VPC to test EB environments. Elastic Beanstalk Web Tier environments require an Internet Gateway as well as a public subnet in order to be created successfully. This VPC environment can be used by your organization for testing/development of web tier applications.
+
 ### What will be created with Elastic Beanstalk VPC environment
 
 The initial environment will have the following:
